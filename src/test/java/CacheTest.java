@@ -5,6 +5,15 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static cache.CacheType.FILE;
 import static cache.CacheType.MEMORY;
@@ -72,6 +81,23 @@ public class CacheTest {
 
         TestPerson child = proxyPerson.child("Таня", 25);
         Assert.assertTrue(proxyPerson.child("Таня", 25).equals(child));
+    }
+    @Test
+    public void testThread() throws Exception {
+        ExecutorService executor= Executors.newFixedThreadPool(3);
+
+        List<Future<Integer>> multFuture= IntStream.range(0, 5)
+                .mapToObj(i->executor.submit(()->proxyMulti.multiply(3)))
+                .collect(Collectors.toList());
+        List<Integer> resultTest=new ArrayList<>();
+        multFuture.forEach(i -> {
+            try {
+                resultTest.add(i.get());
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+        });
+        Assert.assertTrue(resultTest.containsAll(Arrays.asList(6,6,6,6,6)));
     }
 }
 
