@@ -22,12 +22,14 @@ public class CacheHandler implements InvocationHandler {
 
     private final Object delegate;
     private final ConcurrentMap<String, ConcurrentMap<List<Object>, Object>> cache;
-    private final ConcurrentMap<Method, Lock> lockMap;
+
+    private final Lock lockFile = new ReentrantLock();
+    private final Lock lockMemoryAndFile= new ReentrantLock();
+    private final Lock lockMemory = new ReentrantLock();
 
     public CacheHandler(Object delegate) {
         this.delegate = delegate;
         cache = new ConcurrentHashMap<>();
-        lockMap = new ConcurrentHashMap<>();
         init();
     }
 
@@ -93,9 +95,7 @@ public class CacheHandler implements InvocationHandler {
             Class<?> clazz = p.getType();
             if (isSerializeClass(clazz)) sParam = true;
         }
-        if (isSerializeClass(method.getReturnType()) && sParam) return true;
-
-        return false;
+        return (isSerializeClass(method.getReturnType()) && sParam);
     }
 
     private boolean isSerializeClass(Class<?> clazz) {
@@ -125,7 +125,6 @@ public class CacheHandler implements InvocationHandler {
 
         Object result;
         if (cache.containsKey(method.getName())) {
-            lockMap.putIfAbsent(method, new ReentrantLock());
             result = choiceCache(method, args);
 
         } else {
@@ -137,7 +136,7 @@ public class CacheHandler implements InvocationHandler {
 
     private Object cacheFile(Method method, Object[] args, List<Object> listArgs) throws IOException, InvocationTargetException, IllegalAccessException {
 
-        final Lock lockFile = lockMap.get(method);
+
         Object result;
         try {
             lockFile.lock();
@@ -164,7 +163,7 @@ public class CacheHandler implements InvocationHandler {
     private Object cacheFileAndMemory(Method method, Object[] args, List<Object> listArgs) throws IOException, InvocationTargetException, IllegalAccessException {
         Object result;
 
-        final Lock lockMemoryAndFile = lockMap.get(method);
+
         try {
             lockMemoryAndFile.lock();
 
@@ -193,7 +192,7 @@ public class CacheHandler implements InvocationHandler {
 
     private Object cacheMemory(Method method, Object[] args, List<Object> listArgs) throws InvocationTargetException, IllegalAccessException {
         Object result;
-        final Lock lockMemory = lockMap.get(method);
+
         try {
             lockMemory.lock();
 
